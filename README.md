@@ -72,23 +72,52 @@ pip install -r requirements.txt
 
 ```
 Fast-Gaussian-Splatting-for-Novel-View-Synthesis/
-├── gaussian.py              # Gaussian parameterization (quaternions, covariance)
-├── spherical_harmonics.py   # Spherical harmonics for view-dependent colors
-├── render.py                # Main rendering pipeline
-├── utils.py                 # Geometric utilities (projection, matrix ops)
-├── losses.py                # Loss functions (L1, SSIM)
-├── data_loader.py           # Data loading utilities
-├── train.py                 # Training script
-├── inference.py             # Inference script for novel view rendering
-├── download_mipnerf360.py   # Download Mip-NeRF 360 dataset
-├── prepare_mipnerf360.py    # Convert Mip-NeRF 360 to training format
-├── setup_dataset.sh         # Automated dataset setup script
-├── render_trained.py        # User-friendly rendering script with orbit and video
-├── __init__.py              # Package initialization
-├── requirements.txt         # Python dependencies
-├── LICENSE
-└── README.md
+├── gaussian_splatting/          # Core modules (mathematical components)
+│   ├── __init__.py              # Package initialization and exports
+│   ├── gaussian.py              # Gaussian parameterization (quaternions, covariance)
+│   ├── spherical_harmonics.py   # Spherical harmonics for view-dependent colors
+│   ├── render.py                # Main rendering pipeline (pure PyTorch)
+│   ├── utils.py                 # Geometric utilities (projection, matrix ops)
+│   ├── losses.py                # Loss functions (L1, SSIM)
+│   └── data_loader.py           # Data loading utilities
+│
+├── scripts/                     # Training & inference scripts
+│   ├── train.py                 # Main training script
+│   ├── render_trained.py        # User-friendly rendering script (orbit, video)
+│   └── inference.py             # Advanced inference script
+│
+├── datasets/                     # Dataset utilities
+│   ├── download_mipnerf360.py   # Download Mip-NeRF 360 dataset
+│   ├── prepare_mipnerf360.py    # Convert Mip-NeRF 360 to training format
+│   └── setup_dataset.sh          # Automated dataset setup script
+│
+├── README.md                     # Main documentation
+├── LICENSE                       # License file
+├── requirements.txt              # Python dependencies
+└── .gitignore                   # Git ignore rules
 ```
+
+### Module Descriptions
+
+**Core Modules (`gaussian_splatting/`):**
+- **`gaussian.py`**: Handles Gaussian parameterization, including quaternion-to-rotation conversion and covariance matrix construction
+- **`spherical_harmonics.py`**: Implements spherical harmonics evaluation for view-dependent appearance
+- **`render.py`**: Core rendering pipeline implementing tile-based rasterization and alpha blending
+- **`utils.py`**: Geometric utilities for point projection, matrix operations, and camera intrinsics scaling
+- **`losses.py`**: Loss functions (L1 and SSIM) used during training
+- **`data_loader.py`**: Data loading utilities, including dataset class and point cloud initialization
+
+**Scripts (`scripts/`):**
+- **`train.py`**: Main training script with adaptive density control
+- **`render_trained.py`**: User-friendly rendering script with automatic orbit generation and video creation
+- **`inference.py`**: Advanced inference script for custom camera trajectories
+
+**Dataset Utilities (`datasets/`):**
+- **`download_mipnerf360.py`**: Downloads Mip-NeRF 360 dataset scenes
+- **`prepare_mipnerf360.py`**: Converts Mip-NeRF 360 format to training format
+- **`setup_dataset.sh`**: Automated script combining download and preparation
+
+**Note**: All scripts should be run from the repository root directory.
 
 ## Quick Start
 
