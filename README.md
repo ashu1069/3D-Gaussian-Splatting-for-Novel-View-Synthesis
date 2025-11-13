@@ -1,6 +1,8 @@
-# Fast Gaussian Splatting for Novel View Synthesis
+# 3D Gaussian Splatting: An Educational Implementation
 
-A clean, educational implementation of 3D Gaussian Splatting from scratch, designed for understanding and open-source contribution. This project provides a complete rendering pipeline for novel view synthesis using 3D Gaussians as a scene representation.
+A clean, educational implementation of 3D Gaussian Splatting from scratch, designed for learning and understanding the algorithm. This project provides a complete, well-documented rendering pipeline for novel view synthesis using 3D Gaussians as a scene representation.
+
+**Note**: This is an educational implementation written in pure PyTorch. For production use with 100+ FPS performance, consider using libraries with CUDA kernels like [gsplat](https://github.com/nerfstudio-project/gsplat) or the [official 3DGS implementation](https://github.com/graphdeco-inria/gaussian-splatting).
 
 ## Overview
 
@@ -10,16 +12,27 @@ A clean, educational implementation of 3D Gaussian Splatting from scratch, desig
 - **Opacity** (α): Transparency control
 - **Color**: View-dependent appearance via spherical harmonics
 
-The method achieves high-quality rendering with real-time performance by projecting 3D Gaussians onto the 2D image plane and compositing them using alpha blending.
+The method achieves high-quality rendering by projecting 3D Gaussians onto the 2D image plane and compositing them using alpha blending. This educational implementation focuses on clarity and understanding rather than performance optimization.
 
 ## Features
 
-- **Clean Implementation**: Modular codebase with clear separation of concerns
+- **Educational Focus**: Clean, well-commented code explaining the mathematics behind each operation
 - **Comprehensive Documentation**: Detailed theoretical explanations for every component
-- **Educational Focus**: Well-commented code explaining the mathematics behind each operation
-- **Efficient Rendering**: Tile-based rasterization with optimizations (chi-square clipping, early termination)
+- **Modular Design**: Clear separation of concerns for easy understanding
+- **Complete Pipeline**: Full implementation from data loading to training to rendering
+- **Pure PyTorch**: No custom CUDA kernels - easy to understand and modify
 - **View-Dependent Appearance**: Spherical harmonics for realistic material rendering
-- **Easy to Use**: Simple API for rendering novel views from trained Gaussians
+- **Easy to Use**: Simple API for training and rendering novel views
+
+## Educational Purpose
+
+This implementation prioritizes clarity and understanding over performance. It's designed for:
+- Learning how 3D Gaussian Splatting works
+- Understanding the mathematical foundations
+- Experimenting with different components
+- Educational use in courses or tutorials
+
+**Performance Note**: This pure PyTorch implementation runs at ~0.2-1 FPS. For real-time rendering (100+ FPS), the official implementation uses custom CUDA kernels. This codebase focuses on educational value and code clarity.
 
 ## Requirements
 
@@ -86,19 +99,19 @@ We provide scripts to download and prepare the Mip-NeRF 360 dataset:
 **Option 1: Automated Setup (Recommended)**
 ```bash
 # Download and prepare a scene (e.g., 'garden')
-./setup_dataset.sh garden
+./datasets/setup_dataset.sh garden
 
 # Or for other scenes: bicycle, bonsai, counter, kitchen, room, stump, flowers, treehill
-./setup_dataset.sh bicycle
+./datasets/setup_dataset.sh bicycle
 ```
 
 **Option 2: Manual Setup**
 ```bash
 # Step 1: Download a scene
-python download_mipnerf360.py --scene garden --download_dir data/mipnerf360
+python datasets/download_mipnerf360.py --scene garden --download_dir data/mipnerf360
 
 # Step 2: Prepare for training
-python prepare_mipnerf360.py \
+python datasets/prepare_mipnerf360.py \
     --input_dir data/mipnerf360/garden \
     --output_dir data/prepared/garden \
     --scene_name garden
@@ -154,7 +167,7 @@ data/prepared/garden/
 Train 3D Gaussians from images:
 
 ```bash
-python train.py \
+python scripts/train.py \
     --data_dir data/prepared/garden \
     --output_dir output/garden \
     --iterations 7000 \
@@ -215,7 +228,7 @@ python render_trained.py \
 For custom camera trajectories, use `inference.py`:
 
 ```python
-from inference import render_novel_views
+from scripts.inference import render_novel_views
 
 render_novel_views(
     pos_path='output/garden/pos_final.pt',
@@ -237,10 +250,10 @@ You can also use the components independently:
 
 ```python
 import torch
-from gaussian import build_sigma_from_params, quat_to_rotmat
-from spherical_harmonics import evaluate_sh
-from render import render
-from utils import project_points, scale_intrinsics
+from gaussian_splatting.gaussian import build_sigma_from_params, quat_to_rotmat
+from gaussian_splatting.spherical_harmonics import evaluate_sh
+from gaussian_splatting.render import render
+from gaussian_splatting.utils import project_points, scale_intrinsics
 
 # Build covariance matrices from parameters
 scale_raw = torch.load('scale_raw.pt')
@@ -376,9 +389,9 @@ Training optimizes Gaussian parameters to minimize reconstruction error:
 
 ```python
 import torch
-from render import render
-from gaussian import build_sigma_from_params
-from spherical_harmonics import evaluate_sh
+from gaussian_splatting.render import render
+from gaussian_splatting.gaussian import build_sigma_from_params
+from gaussian_splatting.spherical_harmonics import evaluate_sh
 
 # Load trained parameters
 pos = torch.load('pos.pt').cuda()
@@ -413,7 +426,7 @@ Image.fromarray((img.cpu().numpy() * 255).astype(np.uint8)).save('output.png')
 
 ```python
 import torch
-from inference import render_novel_views
+from scripts.inference import render_novel_views
 
 # Create circular orbit trajectory
 n_frames = 60
@@ -505,17 +518,18 @@ The `render()` function accepts several parameters for fine-tuning:
 - Use `--iteration final` to automatically find latest checkpoint
 - Verify checkpoint format matches expected structure
 
-**Low FPS:**
-- Reduce `--scale_factor` for lower resolution rendering
-- Use fewer Gaussians (train for fewer iterations)
-- Render fewer frames: `--orbit_frames 30`
+**Low FPS (Expected):**
+- This is an educational implementation using pure PyTorch
+- Expected performance: ~0.2-1 FPS (much slower than CUDA-accelerated implementations)
+- To improve: Reduce `--scale_factor` (e.g., 0.25), use fewer frames, or train for fewer iterations
+- For production use, consider libraries with CUDA kernels like [gsplat](https://github.com/nerfstudio-project/gsplat)
 
 ## Testing
 
 To verify the installation:
 
 ```python
-python -c "from gaussian import build_sigma_from_params; from spherical_harmonics import evaluate_sh; from render import render; print('✓ All imports successful!')"
+python -c "from gaussian_splatting.gaussian import build_sigma_from_params; from gaussian_splatting.spherical_harmonics import evaluate_sh; from gaussian_splatting.render import render; print('✓ All imports successful!')"
 ```
 
 ## File Format Expectations
@@ -551,10 +565,43 @@ See [LICENSE](LICENSE) file for details.
 This implementation is inspired by the original 3D Gaussian Splatting paper:
 - Kerbl, B., Kopanas, G., Diolatzis, S., Drettakis, G., & Leimkühler, T. (2023). "3D Gaussian Splatting for Real-Time Radiance Field Rendering." SIGGRAPH 2023.
 
+We also acknowledge the following resources:
+- [Mip-NeRF 360 dataset](https://jonbarron.info/mipnerf360/) for providing benchmark scenes
+- The open-source community for inspiration and feedback
+
+## Citation
+
+If you use this implementation in your research or educational materials, please cite:
+
+```bibtex
+@misc{gaussian-splatting-educational,
+  title={3D Gaussian Splatting: An Educational Implementation},
+  author={Your Name},
+  year={2024},
+  howpublished={\url{https://github.com/yourusername/Fast-Gaussian-Splatting-for-Novel-View-Synthesis}}
+}
+```
+
+And the original paper:
+```bibtex
+@article{kerbl2023gaussian,
+  title={3D Gaussian Splatting for Real-Time Radiance Field Rendering},
+  author={Kerbl, Bernhard and Kopanas, Georgios and Diolatzis, Stavros and Drettakis, George and Leimk{\"u}hler, Thomas},
+  journal={ACM Transactions on Graphics},
+  volume={42},
+  number={4},
+  year={2023}
+}
+```
+
+## License
+
+See [LICENSE](LICENSE) file for details.
+
 ## Contact
 
-For questions or issues, please open an issue on GitHub.
+For questions, issues, or contributions, please open an issue on GitHub.
 
 ---
 
-**Note**: This repository includes both training and inference pipelines. You can train 3D Gaussians from images and then render novel views.
+**Educational Purpose**: This repository prioritizes code clarity and educational value. It includes both training and inference pipelines, allowing you to train 3D Gaussians from images and render novel views. Perfect for learning how 3D Gaussian Splatting works!

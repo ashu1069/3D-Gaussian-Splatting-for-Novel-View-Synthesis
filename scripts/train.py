@@ -28,16 +28,21 @@ import torch
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+import sys
+from pathlib import Path
+
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
 import os
 from pathlib import Path
 import json
 import numpy as np
 
-from gaussian import build_sigma_from_params
-from spherical_harmonics import evaluate_sh
-from render import render
-from losses import compute_loss
-from data_loader import GaussianDataset, initialize_gaussians_from_pointcloud, load_point_cloud
+from gaussian_splatting.gaussian import build_sigma_from_params
+from gaussian_splatting.spherical_harmonics import evaluate_sh
+from gaussian_splatting.render import render
+from gaussian_splatting.losses import compute_loss
+from gaussian_splatting.data_loader import GaussianDataset, initialize_gaussians_from_pointcloud, load_point_cloud
 
 
 class GaussianModel:

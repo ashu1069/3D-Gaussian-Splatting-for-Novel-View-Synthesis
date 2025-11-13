@@ -30,16 +30,10 @@ from tqdm import tqdm
 import numpy as np
 from PIL import Image
 
-try:
-    from .gaussian import build_sigma_from_params
-    from .spherical_harmonics import evaluate_sh
-    from .render import render
-    from .utils import scale_intrinsics
-except ImportError:
-    from gaussian import build_sigma_from_params
-    from spherical_harmonics import evaluate_sh
-    from render import render
-    from utils import scale_intrinsics
+from gaussian_splatting.gaussian import build_sigma_from_params
+from gaussian_splatting.spherical_harmonics import evaluate_sh
+from gaussian_splatting.render import render
+from gaussian_splatting.utils import scale_intrinsics
 
 
 def render_novel_views(

@@ -14,11 +14,15 @@ from tqdm import tqdm
 import argparse
 import subprocess
 import os
+import sys
 
-from gaussian import build_sigma_from_params
-from spherical_harmonics import evaluate_sh
-from render import render
-from data_loader import GaussianDataset
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from gaussian_splatting.gaussian import build_sigma_from_params
+from gaussian_splatting.spherical_harmonics import evaluate_sh
+from gaussian_splatting.render import render
+from gaussian_splatting.data_loader import GaussianDataset
 
 
 def create_orbit_trajectory(center, radius=3.0, num_frames=60, elevation=0.0):
@@ -214,8 +218,9 @@ def render_trained_model(
                 # Evaluate colors
                 colors = evaluate_sh(f_dc, f_rest, pos, c2w)
                 
-                # Render
-                img = render(pos, colors, opacity_raw, sigma, c2w, H, W, fx, fy, cx, cy)
+                # Render with optimized parameters
+                img = render(pos, colors, opacity_raw, sigma, c2w, H, W, fx, fy, cx, cy,
+                           pix_guard=32, chi_square_clip=6.25, alpha_cutoff=1/128.)
                 
                 # Save
                 img_np = (img.cpu().numpy() * 255).astype(np.uint8)
@@ -320,7 +325,8 @@ def render_trained_model(
             if len(orbit_c2ws) > 0:
                 c2w_warmup = torch.from_numpy(orbit_c2ws[0]).float().cuda()
                 colors_warmup = evaluate_sh(f_dc, f_rest, pos, c2w_warmup)
-                _ = render(pos, colors_warmup, opacity_raw, sigma, c2w_warmup, H, W, fx, fy, cx, cy)
+                _ = render(pos, colors_warmup, opacity_raw, sigma, c2w_warmup, H, W, fx, fy, cx, cy,
+                          pix_guard=32, chi_square_clip=6.25, alpha_cutoff=1/128.)
                 torch.cuda.synchronize()  # Wait for GPU to finish
             
             # Actual rendering with timing
@@ -334,8 +340,9 @@ def render_trained_model(
                 # Evaluate colors
                 colors = evaluate_sh(f_dc, f_rest, pos, c2w)
                 
-                # Render
-                img = render(pos, colors, opacity_raw, sigma, c2w, H, W, fx, fy, cx, cy)
+                # Render with optimized parameters
+                img = render(pos, colors, opacity_raw, sigma, c2w, H, W, fx, fy, cx, cy,
+                           pix_guard=32, chi_square_clip=6.25, alpha_cutoff=1/128.)
                 
                 # Wait for GPU to finish
                 torch.cuda.synchronize()
