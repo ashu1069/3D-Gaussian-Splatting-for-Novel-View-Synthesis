@@ -11,8 +11,6 @@ def project_points(pc, c2w, fx, fy, cx, cy):
     """
     Project 3D points from world coordinates to camera space and image coordinates.
     
-    Theory:
-    ------
     This function implements the pinhole camera model, which projects 3D world points onto
     a 2D image plane. The process involves two main transformations:
     
@@ -66,8 +64,6 @@ def inv2x2(M, eps=1e-12):
     """
     Compute the inverse of a batch of 2x2 matrices.
     
-    Theory:
-    ------
     For a 2x2 matrix M = [[a, b], [c, d]], the inverse is given by:
     
         M^(-1) = (1/det(M)) * [[d, -b], [-c, a]]
@@ -110,8 +106,6 @@ def scale_intrinsics(H, W, H_src, W_src, fx, fy, cx, cy):
     """
     Scale camera intrinsics to match a different image resolution.
     
-    Theory:
-    ------
     When rendering at a different resolution than the original camera calibration, we need
     to scale the intrinsic parameters proportionally. This preserves the camera's field of
     view and relative geometry.

@@ -1,8 +1,6 @@
 """
 Spherical harmonics evaluation for view-dependent appearance in 3D Gaussian Splatting.
 
-Theory:
-------
 Spherical Harmonics (SH) are a set of basis functions defined on the sphere, analogous to
 Fourier series but for spherical functions. They're used to represent view-dependent
 appearance - how color changes with viewing angle.

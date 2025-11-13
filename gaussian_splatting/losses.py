@@ -1,8 +1,6 @@
 """
 Loss functions for training 3D Gaussian Splatting.
 
-Theory:
-------
 Training 3D Gaussians requires a combination of reconstruction losses to ensure
 the rendered images match the ground truth. The standard approach uses:
 
