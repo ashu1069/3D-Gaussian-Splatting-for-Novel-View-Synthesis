@@ -205,3 +205,54 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# ============================================
+# 3D Gaussian Splatting Project Specific
+# ============================================
+
+# Data directories - datasets and prepared data
+data/
+datasets/
+*.zip
+*.tar.gz
+*.tar
+
+# Training outputs - checkpoints and model files
+output/
+checkpoints/
+*.pt
+*.pth
+*.ckpt
+*.pkl
+
+# Rendered results
+renders/
+results/
+*.mp4
+*.avi
+*.mov
+
+# Point cloud files
+*.ply
+*.pcd
+*.xyz
+
+# Large numpy arrays and data files
+*.npy
+*.npz
+*.h5
+*.hdf5
+
+# COLMAP outputs
+sparse/
+dense/
+*.bin
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+
+# OS files
+.DS_Store
+Thumbs.db
