@@ -1,8 +1,8 @@
-# 3D Gaussian Splatting: An Educational Implementation
+# 3D Gaussian Splatting: From Scratch Implementation
 
-A clean, educational implementation of 3D Gaussian Splatting from scratch, designed for learning and understanding the algorithm. This project provides a complete, well-documented rendering pipeline for novel view synthesis using 3D Gaussians as a scene representation.
+A complete implementation of 3D Gaussian Splatting from scratch in PyTorch. This project provides a full rendering pipeline for novel view synthesis using 3D Gaussians as a scene representation, including training, inference, and rendering capabilities.
 
-**Note**: This is an educational implementation written in pure PyTorch. For production use with 100+ FPS performance, consider using libraries with CUDA kernels like [gsplat](https://github.com/nerfstudio-project/gsplat) or the [official 3DGS implementation](https://github.com/graphdeco-inria/gaussian-splatting).
+**Current Status**: Pure PyTorch implementation achieving ~0.2-1 FPS. **Contributions welcome** for CUDA kernel optimization to reach 100+ FPS performance!
 
 ## Overview
 
@@ -12,27 +12,34 @@ A clean, educational implementation of 3D Gaussian Splatting from scratch, desig
 - **Opacity** (α): Transparency control
 - **Color**: View-dependent appearance via spherical harmonics
 
-The method achieves high-quality rendering by projecting 3D Gaussians onto the 2D image plane and compositing them using alpha blending. This educational implementation focuses on clarity and understanding rather than performance optimization.
+The method achieves high-quality rendering by projecting 3D Gaussians onto the 2D image plane and compositing them using alpha blending.
 
 ## Features
 
-- **Educational Focus**: Clean, well-commented code explaining the mathematics behind each operation
+- **Complete Implementation**: Full 3D Gaussian Splatting pipeline from scratch
 - **Comprehensive Documentation**: Detailed theoretical explanations for every component
-- **Modular Design**: Clear separation of concerns for easy understanding
-- **Complete Pipeline**: Full implementation from data loading to training to rendering
-- **Pure PyTorch**: No custom CUDA kernels - easy to understand and modify
+- **Modular Design**: Clean, well-organized codebase with clear separation of concerns
+- **Complete Pipeline**: Data loading, training, inference, and rendering
+- **Pure PyTorch**: Current implementation uses PyTorch operations (no custom CUDA kernels yet)
 - **View-Dependent Appearance**: Spherical harmonics for realistic material rendering
 - **Easy to Use**: Simple API for training and rendering novel views
 
-## Educational Purpose
+## Performance & Optimization
 
-This implementation prioritizes clarity and understanding over performance. It's designed for:
-- Learning how 3D Gaussian Splatting works
-- Understanding the mathematical foundations
-- Experimenting with different components
-- Educational use in courses or tutorials
+**Current Performance**: ~0.2-1 FPS (pure PyTorch implementation)
 
-**Performance Note**: This pure PyTorch implementation runs at ~0.2-1 FPS. For real-time rendering (100+ FPS), the official implementation uses custom CUDA kernels. This codebase focuses on educational value and code clarity.
+**Optimization Opportunities**:
+- CUDA kernel implementation for rasterization
+- Tile-based culling optimization
+- Memory-efficient Gaussian sorting
+- Parallel projection and blending
+- Integration with existing CUDA libraries (gsplat, diff-gaussian-rasterization)
+
+**Contributions Welcome!** If you're interested in optimizing this implementation, please open an issue or submit a PR. Areas that need optimization:
+1. CUDA rasterization kernels for faster rendering
+2. Memory optimization for large scenes
+3. Multi-GPU rendering support
+4. Performance profiling and benchmarking tools
 
 ## Requirements
 
@@ -547,11 +554,11 @@ The `render()` function accepts several parameters for fine-tuning:
 - Use `--iteration final` to automatically find latest checkpoint
 - Verify checkpoint format matches expected structure
 
-**Low FPS (Expected):**
-- This is an educational implementation using pure PyTorch
-- Expected performance: ~0.2-1 FPS (much slower than CUDA-accelerated implementations)
+**Low FPS:**
+- Current implementation uses pure PyTorch (no custom CUDA kernels)
+- Performance: ~0.2-1 FPS (much slower than optimized implementations)
 - To improve: Reduce `--scale_factor` (e.g., 0.25), use fewer frames, or train for fewer iterations
-- For production use, consider libraries with CUDA kernels like [gsplat](https://github.com/nerfstudio-project/gsplat)
+- **Optimization needed**: CUDA kernel implementation for rasterization (contributions welcome!)
 
 ## Testing
 
@@ -576,18 +583,33 @@ The inference script expects the following file formats:
 
 ## Contributing
 
-Contributions are welcome! This is an educational project, so we especially appreciate:
+Contributions are welcome! This project is actively seeking optimizations and improvements:
 
-- Bug fixes and performance improvements
-- Additional documentation and examples
-- Code clarity improvements
-- Test cases
+### High Priority
+- **CUDA Kernel Implementation**: Write custom CUDA kernels for rasterization to achieve 100+ FPS
+- **Performance Optimization**: Memory efficiency, parallel processing, multi-GPU support
+- **Benchmarking**: Performance profiling tools and benchmarks
 
-Please feel free to submit issues or pull requests.
+### General Contributions
+- Bug fixes and code improvements
+- Additional features and enhancements
+- Documentation improvements
+- Test cases and examples
 
-## License
+### How to Contribute
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/optimization`)
+3. Make your changes
+4. Submit a pull request with a clear description
 
-See [LICENSE](LICENSE) file for details.
+**Areas Needing Optimization**:
+- Rasterization CUDA kernels (highest impact on FPS)
+- Memory-efficient Gaussian management
+- Tile-based culling optimization
+- Multi-GPU rendering pipeline
+- Integration with existing CUDA libraries
+
+Please feel free to open issues to discuss optimization strategies or submit PRs!
 
 ## Acknowledgments
 
@@ -599,19 +621,7 @@ We also acknowledge the following resources:
 - The open-source community for inspiration and feedback
 
 ## Citation
-
-If you use this implementation in your research or educational materials, please cite:
-
-```bibtex
-@misc{gaussian-splatting-educational,
-  title={3D Gaussian Splatting: An Educational Implementation},
-  author={Your Name},
-  year={2024},
-  howpublished={\url{https://github.com/yourusername/Fast-Gaussian-Splatting-for-Novel-View-Synthesis}}
-}
-```
-
-And the original paper:
+Original paper:
 ```bibtex
 @article{kerbl2023gaussian,
   title={3D Gaussian Splatting for Real-Time Radiance Field Rendering},
@@ -631,6 +641,3 @@ See [LICENSE](LICENSE) file for details.
 
 For questions, issues, or contributions, please open an issue on GitHub.
 
----
-
-**Educational Purpose**: This repository prioritizes code clarity and educational value. It includes both training and inference pipelines, allowing you to train 3D Gaussians from images and render novel views. Perfect for learning how 3D Gaussian Splatting works!
