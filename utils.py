@@ -7,84 +7,6 @@ This module contains fundamental geometric operations used throughout the render
 import torch
 
 
-def transform_to_camera_space(pc, c2w):
-    """
-    Transform 3D points from world coordinates to camera space.
-    
-    This is the first step of projection - we transform points to camera space
-    without doing the actual projection. This allows us to check frustum bounds
-    before performing the expensive projection operation.
-    
-    Args:
-        pc: 3D points in world coordinates. Shape: [N, 3]
-        c2w: Camera-to-world transform matrix. Shape: [4, 4]
-        
-    Returns:
-        x, y, z: Points in camera space. Shape: [N] each
-    """
-    w2c = torch.eye(4, device=pc.device, dtype=pc.dtype)
-    R = c2w[:3, :3]
-    t = c2w[:3, 3]
-    w2c[:3, :3] = R.t()
-    w2c[:3, 3] = -R.t() @ t
-
-    PC = ((w2c @ torch.concatenate(
-        [pc, torch.ones_like(pc[:, :1])], dim=1).t()).t())[:, :3]
-    x, y, z = PC[:, 0], PC[:, 1], PC[:, 2]  # Camera space
-    return x, y, z
-
-
-def check_frustum_camera_space(x, y, z, fx, fy, cx, cy, H, W, near, far, pix_guard):
-    """
-    Check if points in camera space fall within the viewing frustum.
-    
-    This function checks frustum bounds BEFORE projection, which is more efficient
-    than projecting first and then checking. We check:
-    1. Depth bounds: z must be between near and far planes
-    2. Image bounds: The projected point would fall within image bounds (with guard band)
-    
-    For a point to project within bounds:
-        -pix_guard < u < W + pix_guard  where u = fx * x/z + cx
-        -pix_guard < v < H + pix_guard  where v = fy * y/z + cy
-    
-    Rearranging these inequalities (assuming z > 0, which is ensured by z > near):
-        z * (-pix_guard - cx) < fx * x < z * (W + pix_guard - cx)
-        z * (-pix_guard - cy) < fy * y < z * (H + pix_guard - cy)
-    
-    Args:
-        x, y, z: Points in camera space. Shape: [N] each
-        fx, fy: Focal lengths (in pixels)
-        cx, cy: Principal point coordinates (in pixels)
-        H, W: Image height and width
-        near, far: Near and far clipping planes
-        pix_guard: Pixel guard band for conservative culling
-        
-    Returns:
-        mask: Boolean mask indicating which points are in frustum. Shape: [N]
-    """
-    # Check depth bounds
-    depth_ok = (z > near) & (z < far)
-    
-    # Check image bounds in camera space (avoiding division by z)
-    # For u = fx * x/z + cx to be in [-pix_guard, W + pix_guard]:
-    #   -pix_guard - cx < fx * x/z < W + pix_guard - cx
-    #   z * (-pix_guard - cx) < fx * x < z * (W + pix_guard - cx)
-    u_min_bound = z * (-pix_guard - cx)
-    u_max_bound = z * (W + pix_guard - cx)
-    fx_x = fx * x
-    u_ok = (fx_x > u_min_bound) & (fx_x < u_max_bound)
-    
-    # For v = fy * y/z + cy to be in [-pix_guard, H + pix_guard]:
-    #   -pix_guard - cy < fy * y/z < H + pix_guard - cy
-    #   z * (-pix_guard - cy) < fy * y < z * (H + pix_guard - cy)
-    v_min_bound = z * (-pix_guard - cy)
-    v_max_bound = z * (H + pix_guard - cy)
-    fy_y = fy * y
-    v_ok = (fy_y > v_min_bound) & (fy_y < v_max_bound)
-    
-    return depth_ok & u_ok & v_ok
-
-
 def project_points(pc, c2w, fx, fy, cx, cy):
     """
     Project 3D points from world coordinates to camera space and image coordinates.
@@ -99,7 +21,7 @@ def project_points(pc, c2w, fx, fy, cx, cy):
        
        In homogeneous coordinates, a point P_world = [x, y, z, 1]^T is transformed to
        camera space as: P_camera = w2c @ P_world
-    
+       
     2. Perspective Projection:
        The pinhole camera model projects 3D points onto a 2D image plane using:
        u = fx * (X_cam / Z_cam) + cx
@@ -124,7 +46,7 @@ def project_points(pc, c2w, fx, fy, cx, cy):
         uv: Image coordinates. Shape: [N, 2]
         x, y, z: Points in camera space. Shape: [N] each
     """
-    w2c = torch.eye(4, device=pc.device, dtype=pc.dtype)
+    w2c = torch.eye(4, device=pc.device)
     R = c2w[:3, :3]
     t = c2w[:3, 3]
     w2c[:3, :3] = R.t()

@@ -44,9 +44,9 @@ import torch
 import numpy as np
 
 try:
-    from .utils import project_points, inv2x2
+    from .utils import project_points, inv2x2, transform_to_camera_space, check_frustum_camera_space
 except ImportError:
-    from utils import project_points, inv2x2
+    from utils import project_points, inv2x2, transform_to_camera_space, check_frustum_camera_space
 
 # Try to compile render function for speed (PyTorch 2.0+)
 # This can provide 2-5x speedup, but still won't match custom CUDA kernels
@@ -116,36 +116,39 @@ def render(pos, color, opacity_raw, sigma, c2w, H, W, fx, fy, cx, cy,
     opacity_raw = opacity_raw[opacity_mask]
     sigma = sigma[opacity_mask]
     
-    # Step 2: Project 3D Gaussians to 2D image coordinates
-    # This transforms world-space positions to camera-space and then to pixel coordinates
-    uv, x, y, z = project_points(pos, c2w, fx, fy, cx, cy)
+    # Step 2: Transform to camera space and check frustum BEFORE projection
+    # This optimization avoids expensive projection for Gaussians outside the view frustum
+    # We transform to camera space first, then check bounds, then only project visible ones
+    x, y, z = transform_to_camera_space(pos, c2w)
     
-    # Step 3: Cull Gaussians outside view frustum
+    # Step 3: Cull Gaussians outside view frustum (in camera space, before projection)
     # pix_guard adds a safety margin to account for Gaussian extent (they're not point samples)
     # We keep Gaussians that might contribute to visible pixels
-    in_guard = (uv[:, 0] > -pix_guard) & (uv[:, 0] < W + pix_guard) & (
-        uv[:, 1] > -pix_guard) & (uv[:, 1] < H + pix_guard) & (z > near) & (z < far)
-
-    uv = uv[in_guard]
+    in_guard = check_frustum_camera_space(x, y, z, fx, fy, cx, cy, H, W, near, far, pix_guard)
+    
+    # Filter all arrays before projection
     pos = pos[in_guard]
     color = color[in_guard]
-    opacity = torch.sigmoid(opacity_raw[in_guard]).clamp(0, 0.999)
-    z = z[in_guard]
+    opacity_raw = opacity_raw[in_guard]
+    sigma = sigma[in_guard]
     x = x[in_guard]
     y = y[in_guard]
-    sigma = sigma[in_guard]
-    idx = torch.nonzero(in_guard, as_tuple=False).squeeze(1)
+    z = z[in_guard]
     
     # Early return if no Gaussians are visible
-    # Create a tensor that preserves gradients from input tensors
     if pos.shape[0] == 0:
         # Return zeros but ensure it's connected to the computation graph
-        # by using a dummy operation that preserves gradients
-        # Use color tensor to preserve gradient connection
         dummy = (color.sum() * 0.0).expand(H * W * 3).reshape(H, W, 3)
         return dummy
+    
+    # Step 4: Project remaining Gaussians to 2D image coordinates
+    # Now we only project the Gaussians that passed frustum culling
+    uv = torch.stack([fx * x / z + cx, fy * y / z + cy], dim=-1)
 
-    # Step 4: Project 3D covariance matrices to 2D image space
+    opacity = torch.sigmoid(opacity_raw).clamp(0, 0.999)
+    idx = torch.nonzero(in_guard, as_tuple=False).squeeze(1)
+
+    # Step 5: Project 3D covariance matrices to 2D image space
     # This is the key mathematical operation: Σ_2D = J @ Σ_3D_camera @ J^T
     # where J is the Jacobian of the projection function
     
@@ -197,7 +200,7 @@ def render(pos, color, opacity_raw, sigma, c2w, H, W, fx, fy, cx, cy,
     idx = idx[keep]
     evals = evals[keep]
 
-    # Step 5: Sort Gaussians by depth (front-to-back)
+    # Step 6: Sort Gaussians by depth (front-to-back)
     # Alpha blending requires front-to-back order for correct occlusion
     # We sort by z (depth in camera space), smallest z = closest to camera
     if z.shape[0] == 0:
@@ -215,7 +218,7 @@ def render(pos, color, opacity_raw, sigma, c2w, H, W, fx, fy, cx, cy,
     evals = evals[order]
     idx = idx[order]
 
-    # Step 6: Tiling - Compute which tiles each Gaussian intersects
+    # Step 7: Tiling - Compute which tiles each Gaussian intersects
     # Tiling enables parallel processing: each tile can be rendered independently
     # We compute a bounding box (AABB) for each Gaussian based on its 2D extent
     
@@ -243,7 +246,7 @@ def render(pos, color, opacity_raw, sigma, c2w, H, W, fx, fy, cx, cy,
     vmin = vmin.clamp(0, H - 1)
     vmax = vmax.clamp(0, H - 1)
 
-    # Step 7: Compute tile indices for each Gaussian's bounding box
+    # Step 8: Compute tile indices for each Gaussian's bounding box
     # Divide pixel coordinates by tile size to get tile coordinates
     umin_tile = (umin // T).to(torch.int64)  # [N] - leftmost tile
     umax_tile = (umax // T).to(torch.int64)  # [N] - rightmost tile
@@ -277,7 +280,7 @@ def render(pos, color, opacity_raw, sigma, c2w, H, W, fx, fy, cx, cy,
     nb_tiles_u = (W + T - 1) // T
     flat_tile_id = flat_tile_v * nb_tiles_u + flat_tile_u  # [0, 0, 0, 0, 1 ...]
 
-    # Step 8: Sort Gaussians by (tile_id, depth) for efficient tile-based rendering
+    # Step 9: Sort Gaussians by (tile_id, depth) for efficient tile-based rendering
     # This creates a list where Gaussians are grouped by tile, and within each tile,
     # they're sorted front-to-back for alpha blending
     
@@ -299,7 +302,7 @@ def render(pos, color, opacity_raw, sigma, c2w, H, W, fx, fy, cx, cy,
     start[1:] = torch.cumsum(nb_gaussian_per_tile[:-1], dim=0)
     end = start + nb_gaussian_per_tile
 
-    # Step 9: Compute inverse covariance matrices for Gaussian evaluation
+    # Step 10: Compute inverse covariance matrices for Gaussian evaluation
     # We need Σ^(-1) to evaluate: G(u,v) = exp(-0.5 * (p-μ)^T Σ^(-1) (p-μ))
     inverse_covariance = inv2x2(sigma_camera)
     # Clamp diagonal to prevent numerical issues (very small eigenvalues → very large inverse)
@@ -343,7 +346,7 @@ def render(pos, color, opacity_raw, sigma, c2w, H, W, fx, fy, cx, cy,
         gaussian_i_opacity = opacity[current_gaussian_ids]  # [N]
         gaussian_i_inverse_covariance = inverse_covariance[current_gaussian_ids]  # [N, 2, 2]
 
-        # Step 10: Evaluate Gaussian contributions for each pixel in this tile
+        # Step 11: Evaluate Gaussian contributions for each pixel in this tile
         # Compute distance from each pixel to each Gaussian center
         du = px_u.unsqueeze(0) - gaussian_i_u.unsqueeze(-1)  # [N, T * T] - u distance
         dv = px_v.unsqueeze(0) - gaussian_i_v.unsqueeze(-1)  # [N, T * T] - v distance
@@ -364,7 +367,7 @@ def render(pos, color, opacity_raw, sigma, c2w, H, W, fx, fy, cx, cy,
         g = torch.exp(-0.5 * torch.clamp(q, max=chi_square_clip))  # [N, T * T] - Gaussian value
         g = torch.where(inside, g, torch.zeros_like(g))  # Zero out contributions outside clipping threshold
         
-        # Step 11: Alpha blending
+        # Step 12: Alpha blending
         # Combine Gaussian value with base opacity: α = opacity_base * G(u,v)
         alpha_i = (gaussian_i_opacity.unsqueeze(-1) * g).clamp_max(alpha_max)  # [N, T * T]
         # Alpha cutoff: Skip Gaussians with opacity < 1/255 (invisible)
@@ -387,7 +390,7 @@ def render(pos, color, opacity_raw, sigma, c2w, H, W, fx, fy, cx, cy,
         # This is the contribution of Gaussian i, accounting for occlusion
         w = alpha_i * T_i * alive  # [N, T * T]
         
-        # Step 12: Accumulate color contributions
+        # Step 13: Accumulate color contributions
         # Final color: C = Σ_i w_i * c_i (weighted sum of Gaussian colors)
         color_contributions = (w.unsqueeze(-1) * gaussian_i_color.unsqueeze(1)).sum(dim=0)  # [T*T, 3]
         
