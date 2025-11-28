@@ -40,16 +40,20 @@ def check_frustum_camera_space(x, y, z, fx, fy, cx, cy, H, W, near, far, pix_gua
     
     This function checks frustum bounds BEFORE projection, which is more efficient
     than projecting first and then checking. We check:
-    1. Depth bounds: z must be between near and far planes
-    2. Image bounds: The projected point would fall within image bounds (with guard band)
+    1. Points must be in front of camera: z > 0 (critical to avoid projection errors)
+    2. Depth bounds: z must be between near and far planes
+    3. Image bounds: The projected point would fall within image bounds (with guard band)
     
     For a point to project within bounds:
         -pix_guard < u < W + pix_guard  where u = fx * x/z + cx
         -pix_guard < v < H + pix_guard  where v = fy * y/z + cy
     
-    Rearranging these inequalities (assuming z > 0, which is ensured by z > near):
+    Rearranging these inequalities (assuming z > 0):
         z * (-pix_guard - cx) < fx * x < z * (W + pix_guard - cx)
         z * (-pix_guard - cy) < fy * y < z * (H + pix_guard - cy)
+    
+    Note: These inequalities only hold when z > 0. Points behind the camera (z <= 0)
+    would cause division by zero or negative z, leading to incorrect projections.
     
     Args:
         x, y, z: Points in camera space. Shape: [N] each
@@ -62,10 +66,16 @@ def check_frustum_camera_space(x, y, z, fx, fy, cx, cy, H, W, near, far, pix_gua
     Returns:
         mask: Boolean mask indicating which points are in frustum. Shape: [N]
     """
-    # Check depth bounds
+    # CRITICAL: Filter out points behind the camera (z <= 0)
+    # Points behind camera would cause division by zero or negative z in projection,
+    # leading to incorrect or invalid projected coordinates
+    in_front = z > 0
+    
+    # Check depth bounds (z must be between near and far planes)
     depth_ok = (z > near) & (z < far)
     
     # Check image bounds in camera space (avoiding division by z)
+    # These inequalities only make sense when z > 0, which we've already checked
     # For u = fx * x/z + cx to be in [-pix_guard, W + pix_guard]:
     #   -pix_guard - cx < fx * x/z < W + pix_guard - cx
     #   z * (-pix_guard - cx) < fx * x < z * (W + pix_guard - cx)
@@ -82,7 +92,8 @@ def check_frustum_camera_space(x, y, z, fx, fy, cx, cy, H, W, near, far, pix_gua
     fy_y = fy * y
     v_ok = (fy_y > v_min_bound) & (fy_y < v_max_bound)
     
-    return depth_ok & u_ok & v_ok
+    # All conditions must be satisfied: in front of camera, within depth bounds, and within image bounds
+    return in_front & depth_ok & u_ok & v_ok
 
 
 def project_points(pc, c2w, fx, fy, cx, cy):
